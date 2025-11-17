@@ -1,3 +1,5 @@
+//go:build windows
+
 package ipc
 
 import (
@@ -8,9 +10,9 @@ import (
 	"fmt"
 	"net"
 	"os"
-	"runtime"
 	"sync"
 
+	"github.com/Microsoft/go-winio"
 	"github.com/google/uuid"
 )
 
@@ -22,11 +24,11 @@ type Conn struct {
 }
 
 func NewConn(appID string) (*Conn, error) {
-	path := ipcPath()
-	c, err := net.Dial("unix", path)
+	c, err := winio.DialPipe(ipcPath(), nil)
 	if err != nil {
 		return nil, err
 	}
+
 	return &Conn{
 		conn:   c,
 		reader: bufio.NewReader(c),
@@ -83,14 +85,7 @@ func (c *Conn) Receive() (OpCode, json.RawMessage, error) {
 }
 
 func ipcPath() string {
-	if runtime.GOOS == "windows" {
-		return `\\.\pipe\discord-ipc-0`
-	}
-	xdg := os.Getenv("XDG_RUNTIME_DIR")
-	if xdg == "" {
-		xdg = "/tmp"
-	}
-	return xdg + "/discord-ipc-0"
+	return `\\.\pipe\discord-ipc-0`
 }
 
 func BuildDispatchPayload(cmd string, args any) (map[string]any, error) {
